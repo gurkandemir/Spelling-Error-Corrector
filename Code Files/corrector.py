@@ -81,6 +81,80 @@ def createConfusion(true, false, num_occurs):
   fillConfusion(true, false, num_occurs, edit_types)
   #normalizeConfusions()
 
+def getDifference(true, false, edit_types):
+  i, j = len(true), len(false)
+  operation = edit_types[i][j]
+
+  while (i >= 0 and j >= 0) and operation is not 'None':
+    operation = edit_types[i][j]
+
+    first = true[i-1] if i > 0 else '#'
+    second = false[j-1] if j > 0 else '#'
+      
+    if operation is 'Copy':
+      i, j = i - 1, j - 1
+    else:
+      return (operation, first, second)
+
+def getCandidates(word): 
+  splits = getSplits(word)
+  inserts = getInserts(splits)
+  deletes = getDeletes(splits)
+  substitutions = getSubstitutions(splits)
+  transposes = getTransposes(splits)
+
+  return set(inserts + deletes + substitutions + transposes)
+
+def getSplits(word):
+  splits = []
+  for i in range(len(word) + 1):
+    splits.append((word[:i], word[i:]))
+  
+  return splits
+
+def getInserts(splits):
+  letters    = 'abcdefghijklmnopqrstuvwxyz-_.?'
+  inserts = []
+  for (first, second) in splits:
+    for char in letters:
+      token = first + char + second
+      if(corpus.get(token, 0) > 0):
+        inserts.append(token)
+        
+  return inserts
+
+def getDeletes(splits):
+  deletes = []
+  for (first, second) in splits:
+    if(len(second) > 0):
+      token = first + second[1:]
+      if(corpus.get(token, 0) > 0):
+        deletes.append(token)
+  
+  return deletes
+
+def getSubstitutions(splits):
+  letters    = 'abcdefghijklmnopqrstuvwxyz-_.?'
+  substitutions = []
+  for (first, second) in splits:
+    if(len(second) > 0):
+      for char in letters:
+        token = first + char + second[1:]
+        if(corpus.get(token, 0) > 0):
+          substitutions.append(token)
+  
+  return substitutions
+
+def getTransposes(splits):
+  transposes = []
+  for (first, second) in splits:
+    if(len(second) > 1):
+      token = first + second[1] + second[0] + second[2:]
+      if(corpus.get(token, 0) > 0):
+        transposes.append(token)
+  
+  return transposes
+  
 corpus = dict()
 
 text = open('corpus.txt').read().lower()
