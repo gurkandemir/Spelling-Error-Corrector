@@ -96,6 +96,36 @@ def getDifference(true, false, edit_types):
     else:
       return (operation, first, second)
 
+def correction(word):
+  if(word in corpus):
+    return word
+  
+  candidates, max_val, result = getCandidates(word), 0, ''
+  for candidate in candidates:
+    prob = calculateProbability(candidate, word)
+    if(prob > max_val):
+      result, max_val = candidate, prob
+    
+  return result
+
+def calculateProbability(candidate, word):
+  edit_types = getEditTypes(candidate, word)
+  operation, first, second = getDifference(candidate, word, edit_types)
+
+  prob_error = 0
+  if(operation is 'Insertion'):
+    prob_error = insertion.get(first + '' + second, 0)
+  elif(operation is 'Deletion'):
+    prob_error = deletion.get(first + '' + second, 0)
+  elif(operation is 'Substitution'):
+    prob_error = substitution.get(first + '' + second, 0)
+  elif(operation is 'Transpose'):
+    prob_error = transpose.get(first + '' + second, 0)
+
+  prob_corpus = corpus.get(candidate, 0) / sum(corpus.values())
+
+  return prob_corpus * prob_error
+  
 def getCandidates(word): 
   splits = getSplits(word)
   inserts = getInserts(splits)
@@ -154,7 +184,7 @@ def getTransposes(splits):
         transposes.append(token)
   
   return transposes
-  
+
 corpus = dict()
 
 text = open('corpus.txt').read().lower()
