@@ -125,7 +125,7 @@ def calculateProbability(candidate, word):
   prob_corpus = corpus.get(candidate, 0) / sum(corpus.values())
 
   return prob_corpus * prob_error
-  
+
 def getCandidates(word): 
   splits = getSplits(word)
   inserts = getInserts(splits)
@@ -216,3 +216,9 @@ with open('spell-errors.txt', 'r') as f:
         num_occurs = int(token[1])
         
       createConfusion(true, false, num_occurs)
+
+with open('test-words-misspelled.txt', 'r') as f:
+  lines = f.readlines()
+  for line in lines:
+    misspelled = re.sub(r"\s+", "", line.lower())
+    print(correction(misspelled))
