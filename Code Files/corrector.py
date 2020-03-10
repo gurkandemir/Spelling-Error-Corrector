@@ -1,5 +1,20 @@
 import regex as re
 
+def createNgrams():
+  for item in corpus:
+    value = corpus.get(item, 0)
+    unigram['#'] = unigram.get('#', 0) + value
+    
+    prev = '#'
+    
+    for curr in item:
+      unigram[curr] = unigram.get(curr, 0) + value
+      
+      concat = prev + '' + curr    
+      bigram[concat] = bigram.get(concat, 0) + value
+      
+      prev = curr
+
 def getEditTypes(true, false):
   distances = [[0 for j in range(len(false) + 1)] for i in range(len(true) + 1)]
   edit_types = [['None' for j in range(len(false) + 1)] for i in range(len(true) + 1)]
@@ -52,34 +67,18 @@ def fillConfusion(true, false, num_occurs, edit_types):
       insertion[first + '' + second] = insertion.get(first + '' + second, 0) + num_occurs
       j = j - 1
     elif operation == 'Deletion':
-      deletion[first + '' + second] = deletion.get(first + '' + second, 0) + num_occurs
+      deletion[second + '' + first] = deletion.get(second + '' + first, 0) + num_occurs
       i = i - 1
     elif operation == 'Substitution':
-      substitution[first + '' + second] = substitution.get(first + '' + second, 0) + num_occurs
+      substitution[second + '' + first] = substitution.get(second + '' + first, 0) + num_occurs
       i, j = i - 1, j - 1
     elif operation == 'Transpose':
-      transpose[first + '' + second] = transpose.get(first + '' + second, 0) + num_occurs
+      transpose[second + '' + first] = transpose.get(second + '' + first, 0) + num_occurs
       i, j = i - 2, j - 2
-
-def normalizeConfusions():
-  letters    = 'abcdefghijklmnopqrstuvwxyz-_.?'
-
-  for first in letters:
-    for second in letters:
-      regex1 = len(re.findall(first, text))
-      regex2 = len(re.findall(first + '' + second, text))
-
-      if(regex1 > 0):
-        insertion[first + '' + second] = insertion.get(first + '' + second, 0) / regex1
-        substitution[first + '' + second] = substitution.get(first + '' + second, 0) / regex1
-      if(regex2 > 0):
-        deletion[first + '' + second] = deletion.get(first + '' + second, 0) / regex2
-        transpose[first + '' + second] = transpose.get(first + '' + second, 0) / regex2
 
 def createConfusion(true, false, num_occurs):
   edit_types = getEditTypes(true, false)
   fillConfusion(true, false, num_occurs, edit_types)
-  #normalizeConfusions()
 
 def getDifference(true, false, edit_types):
   i, j = len(true), len(false)
@@ -101,29 +100,31 @@ def correction(word):
     return word
   
   candidates, max_val, result = getCandidates(word), 0, ''
-  for candidate in candidates:
-    prob = calculateProbability(candidate, word)
+  for candidate, operation, first, second in candidates:
+    prob = calculateProbability(candidate, operation, first, second)
     if(prob > max_val):
       result, max_val = candidate, prob
     
   return result
 
-def calculateProbability(candidate, word):
-  edit_types = getEditTypes(candidate, word)
-  operation, first, second = getDifference(candidate, word, edit_types)
-
-  prob_error = 0
-  if(operation is 'Insertion'):
-    prob_error = insertion.get(first + '' + second, 0)
-  elif(operation is 'Deletion'):
-    prob_error = deletion.get(first + '' + second, 0)
-  elif(operation is 'Substitution'):
-    prob_error = substitution.get(first + '' + second, 0)
-  elif(operation is 'Transpose'):
-    prob_error = transpose.get(first + '' + second, 0)
+def calculateProbability(candidate, operation, first, second):
+  alpha = 0
+  l = 0
+  prob_error = 1
+  if(unigram.get(first, 0) > 0):
+    if(operation is 'Insertion'):
+      prob_error = (insertion.get(first + '' + second, 0) + alpha) / (unigram.get(first, 0) + l)
+    elif(operation is 'Substitution'):
+      prob_error = (substitution.get(first + '' + second, 0) + alpha) / (unigram.get(second, 0) + l)
+  
+  if(bigram.get(first + '' + second, 0) > 0):
+    if(operation is 'Deletion'):
+      prob_error = (deletion.get(first + '' + second, 0) + alpha) / (bigram.get(first + '' + second, 0) + l)
+    elif(operation is 'Transpose'):
+      prob_error = (transpose.get(first + '' + second, 0) + alpha) / (bigram.get(first + '' + second, 0) + l)
 
   prob_corpus = corpus.get(candidate, 0) / sum(corpus.values())
-
+  
   return prob_corpus * prob_error
 
 def getCandidates(word): 
@@ -142,36 +143,38 @@ def getSplits(word):
   
   return splits
 
-def getInserts(splits):
-  letters    = 'abcdefghijklmnopqrstuvwxyz-_.?'
-  inserts = []
+def getDeletes(splits):
+  letters    = 'abcdefghijklmnopqrstuvwxyz-_.'
+  deletes = []
   for (first, second) in splits:
     for char in letters:
       token = first + char + second
       if(corpus.get(token, 0) > 0):
-        inserts.append(token)
+        a = first[-1] if len(first) > 0 else '#'
+        deletes.append((token, 'Deletion', a, char))
         
-  return inserts
+  return deletes
 
-def getDeletes(splits):
-  deletes = []
+def getInserts(splits):
+  inserts = []
   for (first, second) in splits:
     if(len(second) > 0):
       token = first + second[1:]
       if(corpus.get(token, 0) > 0):
-        deletes.append(token)
+        a = first[-1] if len(first) > 0 else '#'
+        inserts.append((token, 'Insertion', a, second[0]))
   
-  return deletes
+  return inserts
 
 def getSubstitutions(splits):
-  letters    = 'abcdefghijklmnopqrstuvwxyz-_.?'
+  letters    = 'abcdefghijklmnopqrstuvwxyz-_.'
   substitutions = []
   for (first, second) in splits:
     if(len(second) > 0):
       for char in letters:
         token = first + char + second[1:]
         if(corpus.get(token, 0) > 0):
-          substitutions.append(token)
+          substitutions.append((token, 'Substitution', second[0], char))
   
   return substitutions
 
@@ -181,18 +184,17 @@ def getTransposes(splits):
     if(len(second) > 1):
       token = first + second[1] + second[0] + second[2:]
       if(corpus.get(token, 0) > 0):
-        transposes.append(token)
+        transposes.append((token, 'Transpose', second[1], second[0]))
   
   return transposes
 
 corpus = dict()
-
-text = open('corpus.txt').read().lower()
-
 insertion = {}
 deletion = {}
 substitution = {}
 transpose = {}
+unigram = {}
+bigram = {}
 
 with open('corpus.txt', 'r') as f:
   lines = f.readlines()
@@ -200,6 +202,8 @@ with open('corpus.txt', 'r') as f:
     words = re.findall(r'\w+', line.lower())
     for word in words:
       corpus[word] = corpus.get(word, 0) + 1
+
+createNgrams()
 
 with open('spell-errors.txt', 'r') as f:
   lines = f.readlines()
