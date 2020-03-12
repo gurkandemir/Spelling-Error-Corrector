@@ -1,5 +1,10 @@
+import argparse
 import regex as re
 
+###
+# Method in order to calculate frequencies of each character and each substring that has length 2.
+# Those dictionaries are used in calculation in error probabilty with the help of confusion matrices.
+###
 def createNgrams():
   for item in corpus:
     value = corpus.get(item, 0)
@@ -15,6 +20,10 @@ def createNgrams():
       
       prev = curr
 
+###
+# Method in order to get edit differences between two words.
+# It gets true, and false words as input. And using DL algorithm it checks differences between those words.
+###
 def getEditTypes(true, false):
   distances = [[0 for j in range(len(false) + 1)] for i in range(len(true) + 1)]
   edit_types = [['None' for j in range(len(false) + 1)] for i in range(len(true) + 1)]
@@ -51,6 +60,11 @@ def getEditTypes(true, false):
   
   return edit_types
 
+###
+# Method in order to fill confusion matrices.
+# It gets true, false and number of occurences using spell_errors files.
+# Also it gets edit type between those words and updates related confusion matrix.
+###
 def fillConfusion(true, false, num_occurs, edit_types):
   i, j = len(true), len(false)
   operation = edit_types[i][j]
@@ -76,25 +90,39 @@ def fillConfusion(true, false, num_occurs, edit_types):
       transpose[second + '' + first] = transpose.get(second + '' + first, 0) + num_occurs
       i, j = i - 2, j - 2
 
+###
+# Method in order to create confusion matrices.
+# It calls related functions and constructs confusions.
+###
 def createConfusion(true, false, num_occurs):
   edit_types = getEditTypes(true, false)
   fillConfusion(true, false, num_occurs, edit_types)
 
-def correction(word):
+###
+# Method in order to correct given misspelled words.
+# It gets misspelled word as input and try to estimate correct version.
+# Parameter smooth indicates whether 1-alpha smoothing is going to implemented while calculating error or not.
+###
+def correction(word, smooth):
   if(word in corpus):
     return word
   
   candidates, max_val, result = getCandidates(word), 0, ''
   for candidate, operation, first, second in candidates:
-    prob = calculateProbability(candidate, operation, first, second)
+    prob = calculateProbability(candidate, operation, first, second, smooth)
     if(prob > max_val):
       result, max_val = candidate, prob
     
   return result
 
-def calculateProbability(candidate, operation, first, second):
-  alpha = 0
-  l = 0
+###
+# Method in order to calculate probabily of candidate.
+# It calculates P(w) and P(x|w).
+###
+def calculateProbability(candidate, operation, first, second, smooth):
+  alpha = 1 if smooth else 0
+  l = 26 if smooth else 0
+
   prob_error = 1
   if(unigram.get(first, 0) > 0):
     if(operation is 'Insertion'):
@@ -112,6 +140,10 @@ def calculateProbability(candidate, operation, first, second):
   
   return prob_corpus * prob_error
 
+###
+# It gets all candidates with edit distance 1 than given misspelled words.
+# It calls necessary functions and find all words with edit distance 1 that exist in corpus.
+###
 def getCandidates(word): 
   splits = getSplits(word)
   inserts = getInserts(splits)
@@ -173,41 +205,122 @@ def getTransposes(splits):
   
   return transposes
 
-corpus = dict()
-insertion = {}
-deletion = {}
-substitution = {}
-transpose = {}
-unigram = {}
-bigram = {}
+###
+# Parses arguments.
+###
+def parseArg():
+  parser = argparse.ArgumentParser()
 
-with open('corpus.txt', 'r') as f:
-  lines = f.readlines()
-  for line in lines:
-    words = re.findall(r'\w+', line.lower())
-    for word in words:
-      corpus[word] = corpus.get(word, 0) + 1
+  parser.add_argument('--corpus', action="store", dest="corpus", required=True)
+  parser.add_argument('--spell_errors', action="store", dest="spell_errors", required=True)
+  parser.add_argument('--misspelled', action="store", dest="misspelled", required=True)
+  parser.add_argument('--correct', action="store", dest="correct", required=False)
+  parser.add_argument('--smooth', action="store_true", dest="smooth", default=False)
+  return parser.parse_args()
 
-createNgrams()
+###
+# Prints corrected versions of misspelled words to file.
+###
+def printResults(corrected):
+  with open('output.txt', 'w+') as f:
+    for predict in corrected:
+      f.write(predict + '\n')
 
-with open('spell-errors.txt', 'r') as f:
-  lines = f.readlines()
-  for line in lines:
-    words = line.split(':')
-    true = words[0].lower()
-    falses = re.sub(r'\s+', '', words[1].lower()).split(',')
-    value_list = []
-    for false in falses:
-      num_occurs = 1
-      if('*' in false):
-        token = false.split('*')
-        false = token[0]
-        num_occurs = int(token[1])
-        
-      createConfusion(true, false, num_occurs)
+###
+# Calculates accuracy of spell-corrector system.
+###
+def calculateAccuracy(true, corrected):
+  counter = 0
+  for actual, predict in zip(true, corrected):
+    if(actual != predict):
+      counter += 1
 
-with open('test-words-misspelled.txt', 'r') as f:
-  lines = f.readlines()
-  for line in lines:
-    misspelled = re.sub(r"\s+", "", line.lower())
-    print(correction(misspelled))
+  accuracy = 1 - (counter / len(true))
+  print('Accuracy is %.2f'  %accuracy)
+
+###
+# Methods in order to read corpus, and fill dictionary.
+###
+def readCorpus(corpus_file):
+  with open(corpus_file, 'r') as f:
+    lines = f.readlines()
+    for line in lines:
+      words = re.findall(r'\w+', line.lower())
+      for word in words:
+        corpus[word] = corpus.get(word, 0) + 1
+
+###
+# Methods in order to read spell_errors, and constructs confusion matrices.
+###
+def readSpellErrors(spell_errors):
+  with open(spell_errors, 'r') as f:
+    lines = f.readlines()
+    for line in lines:
+      words = line.split(':')
+      true = words[0].lower()
+      falses = re.sub(r'\s+', '', words[1].lower()).split(',')
+      value_list = []
+      for false in falses:
+        num_occurs = 1
+        if('*' in false):
+          token = false.split('*')
+          false = token[0]
+          num_occurs = int(token[1])
+          
+        createConfusion(true, false, num_occurs)
+
+###
+# Methods in order to read misspelled words in file and finds corrected words.
+###
+def getCorrections(misspelled, smooth):
+  corrected = []
+  with open(misspelled, 'r') as f:
+    lines = f.readlines()
+    for line in lines:
+      misspelled = re.sub(r"\s+", "", line.lower())
+      corrected.append(correction(misspelled, smooth))
+
+  return corrected
+
+###
+# Methods in order to read correct version of misspelled ones, and calculates accuracy of system.
+###
+def checkCorrections(correct, corrected):
+  true = []
+  with open(correct, 'r') as f:
+    lines = f.readlines()
+    for line in lines:
+      correct = re.sub(r"\s+", "", line.lower())
+      true.append(correct)
+
+  calculateAccuracy(true, corrected)
+
+###
+# All execution.
+###
+def execute(corpus_file, spell_errors, misspelled, correct, smooth):
+  readCorpus(corpus_file)
+  createNgrams()
+  readSpellErrors(spell_errors)
+
+  corrected = getCorrections(misspelled, smooth)
+  printResults(corrected)
+
+  if(correct is not None):
+    checkCorrections(correct, corrected)
+
+if __name__ == '__main__':
+
+  arguments = parseArg()
+
+  corpus_file, spell_errors, misspelled, correct, smooth = arguments.corpus, arguments.spell_errors, arguments.misspelled, arguments.correct, arguments.smooth  
+
+  corpus = dict()
+  insertion = {}
+  deletion = {}
+  substitution = {}
+  transpose = {}
+  unigram = {}
+  bigram = {}
+
+  execute(corpus_file, spell_errors, misspelled, correct, smooth)
