@@ -80,21 +80,6 @@ def createConfusion(true, false, num_occurs):
   edit_types = getEditTypes(true, false)
   fillConfusion(true, false, num_occurs, edit_types)
 
-def getDifference(true, false, edit_types):
-  i, j = len(true), len(false)
-  operation = edit_types[i][j]
-
-  while (i >= 0 and j >= 0) and operation is not 'None':
-    operation = edit_types[i][j]
-
-    first = true[i-1] if i > 0 else '#'
-    second = false[j-1] if j > 0 else '#'
-      
-    if operation is 'Copy':
-      i, j = i - 1, j - 1
-    else:
-      return (operation, first, second)
-
 def correction(word):
   if(word in corpus):
     return word
