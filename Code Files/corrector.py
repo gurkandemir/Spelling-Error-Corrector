@@ -161,7 +161,7 @@ def getSplits(word):
   return splits
 
 def getDeletes(splits):
-  letters    = 'abcdefghijklmnopqrstuvwxyz-_.'
+  letters    = 'abcdefghijklmnopqrstuvwxyz-_'
   deletes = []
   for (first, second) in splits:
     for char in letters:
@@ -184,7 +184,7 @@ def getInserts(splits):
   return inserts
 
 def getSubstitutions(splits):
-  letters    = 'abcdefghijklmnopqrstuvwxyz-_.'
+  letters    = 'abcdefghijklmnopqrstuvwxyz-_'
   substitutions = []
   for (first, second) in splits:
     if(len(second) > 0):
@@ -239,12 +239,41 @@ def calculateAccuracy(true, corrected):
   print('Accuracy is %.2f'  %accuracy)
 
 ###
+# Method in order to tokenize line.
+# It replaces some character with space.
+###
+def tokenize(line):
+  line = re.sub('[0-9]', ' ', line)
+  line = line.replace('.', ' ')
+  line = line.replace('?', ' ')
+  line = line.replace('!', ' ')
+  line = line.replace('"', ' ')
+  line = line.replace(',', ' ')
+  line = line.replace('\'', ' ')
+  line = line.replace('-', ' ')
+  line = line.replace('_', ' ')
+  line = line.replace(';', ' ')
+  line = line.replace(':', ' ')
+  line = line.replace('=', ' ')
+  line = line.replace('(', ' ')
+  line = line.replace(')', ' ')
+  line = line.replace('[', ' ')
+  line = line.replace(']', ' ')
+  line = line.replace('/', ' ')
+  line = line.replace('#', ' ')
+  line = line.replace('>', ' ')
+  line = line.replace('<', ' ')
+  line = line.replace('$', ' ')
+  line = line.replace('*', ' ')
+  return line
+###
 # Methods in order to read corpus, and fill dictionary.
 ###
 def readCorpus(corpus_file):
   with open(corpus_file, 'r') as f:
     lines = f.readlines()
     for line in lines:
+      line = tokenize(line)
       words = re.findall(r'\w+', line.lower())
       for word in words:
         corpus[word] = corpus.get(word, 0) + 1
