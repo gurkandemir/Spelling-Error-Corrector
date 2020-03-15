@@ -15,7 +15,7 @@ In order to run Spelling-Error-Corrector, execute the following from the command
 
 ```
 > python3 corrector.py --corpus [CORPUS_FILE] --spell_errors [SPELL_ERRORS_FILE] --misspelled [MISSPELLED_FILE]
---correct [CORRECT_FILE] --smooth
+--correct [CORRECT_FILE] --smooth --print_confusions
 ```
 
 ```
@@ -23,7 +23,8 @@ where [CORPUS_FILE] -> path of corpus.txt (required),
       [SPELL_ERRORS_FILE] -> path of spell_errors.txt(required),
       [MISSPELLED_FILE] -> path of misspelled words file(required),
       [CORRECT_FILE] -> path of correct words file(not required),
-      smooth -> whether use alpha smoothing or not(not required)
+      smooth -> whether use alpha smoothing or not(not required),
+      print_confusions -> whether print confusion matrices or not(not required)
 ```
 
 
@@ -36,4 +37,6 @@ where [CORPUS_FILE] -> path of corpus.txt (required),
 5. smooth is not required.
 6. If you execute algorithm with smooth, it implements alpha smoothing.
 Otherwise, it does not implement smoothing.
+7. If you execute algorithm with print_confusions, it prints confusion matrices by
+creating new text files. Otherwise, it does not print.
 ```
