@@ -216,6 +216,7 @@ def parseArg():
   parser.add_argument('--misspelled', action="store", dest="misspelled", required=True)
   parser.add_argument('--correct', action="store", dest="correct", required=False)
   parser.add_argument('--smooth', action="store_true", dest="smooth", default=False)
+  parser.add_argument('--print_confusions', action="store_true", dest="print_confusions", default=False)
   return parser.parse_args()
 
 ###
@@ -225,6 +226,35 @@ def printResults(corrected):
   with open('output.txt', 'w+') as f:
     for predict in corrected:
       f.write(predict + '\n')
+
+###
+# Method in order to print confusion matrices.
+###
+def printConfusions():
+  printConfusion(insertion, 0)
+  printConfusion(deletion, 1)
+  printConfusion(substitution, 2)
+  printConfusion(transpose, 3)
+
+###
+# Method in order to print given confusion matrix.
+###
+def printConfusion(confusion, id):
+  name = 'insertion.txt' if id == 0 else 'deletion.txt' if id == 1 else 'substitution.txt' if id == 2 else 'transpose.txt'
+  letters    = '#abcdefghijklmnopqrstuvwxyz'
+
+  with open(name, 'w+') as f:
+    f.write('  #    a    b    c    d    e    f    g    h    i    j    k    l    m    n    o    p    q    r    s    t    u    v    w    x    y    z    \n')
+    for c in letters:
+      f.write(c + ' ')
+      for s in letters:
+        val = str(confusion.get(c + '' + s, 0))
+        l = len(val)
+        f.write(val)
+        for _ in range(5 - l):
+          f.write(' ')
+
+      f.write('\n')
 
 ###
 # Calculates accuracy of spell-corrector system.
@@ -327,11 +357,14 @@ def checkCorrections(correct, corrected):
 ###
 # All execution.
 ###
-def execute(corpus_file, spell_errors, misspelled, correct, smooth):
+def execute(corpus_file, spell_errors, misspelled, correct, smooth, print_confusions):
   readCorpus(corpus_file)
   createNgrams()
   readSpellErrors(spell_errors)
 
+  if(print_confusions):
+    printConfusions()
+  
   corrected = getCorrections(misspelled, smooth)
   printResults(corrected)
 
@@ -342,7 +375,7 @@ if __name__ == '__main__':
 
   arguments = parseArg()
 
-  corpus_file, spell_errors, misspelled, correct, smooth = arguments.corpus, arguments.spell_errors, arguments.misspelled, arguments.correct, arguments.smooth  
+  corpus_file, spell_errors, misspelled, correct, smooth, print_confusions = arguments.corpus, arguments.spell_errors, arguments.misspelled, arguments.correct, arguments.smooth, arguments.print_confusions  
 
   corpus = dict()
   insertion = {}
@@ -352,4 +385,4 @@ if __name__ == '__main__':
   unigram = {}
   bigram = {}
 
-  execute(corpus_file, spell_errors, misspelled, correct, smooth)
+  execute(corpus_file, spell_errors, misspelled, correct, smooth, print_confusions)
